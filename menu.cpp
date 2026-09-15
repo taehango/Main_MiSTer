@@ -8212,7 +8212,7 @@ void PrintDirectory(int expand)
 	{
 		int k = flist_iFirstEntry() + OsdGetSize() - 1;
 		if (flist_nDirEntries() && k == flist_iSelectedEntry() && k < flist_nDirEntries()
-			&& strlen(flist_DirItem(k)->altname) > 28 && !(!cfg.rbf_hide_datecode && flist_DirItem(k)->datecode[0])
+			&& OsdDisplayLength(flist_DirItem(k)->altname) > 28 && !(!cfg.rbf_hide_datecode && flist_DirItem(k)->datecode[0])
 			&& flist_DirItem(k)->de.d_type != DT_DIR && k < flist_nDirEntries() - 1)
 		{
 			//make room for last expanded line

@@ -1473,7 +1473,7 @@ static void get_display_name(direntext_t *dext, const char *ext, int options)
 
 		// 현재 스캔 중인 폴더의 names.txt 로드
 		char names_path[1280];
-		snprintf(names_path, sizeof(names_path), "%s/%s/names.txt", getRootDir(), scanned_path);
+		snprintf(names_path, sizeof(names_path), "%s/names.txt", scanned_path);
 		int size = FileLoad(names_path, 0, 0);
 		if (size)
 		{
