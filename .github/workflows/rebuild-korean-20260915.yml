@@ -85,7 +85,6 @@ jobs:
             1f72c5c1fa6dda022118bda6c2fe852ffa4d30b4
             4a4154941806bfbe25dd498c5f621aa251ab171c
             740138f9964b858685a54fd054ea50e114b89cbe
-            60504f302527eb898466aa17da7c86915ff25746
             71b8c10350d6c1966dc6122317d06243b2e351ac
             4716f5269f789ae98d9714d632ed819f4547b55e
           )
@@ -93,6 +92,18 @@ jobs:
             echo "Applying $c"
             git cherry-pick -Xours "$c"
           done
+
+      - name: Apply names.txt path fix only
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('file_io.cpp')
+          s = p.read_text()
+          s = s.replace('snprintf(names_path, sizeof(names_path), "%s/%s/names.txt", getRootDir(), scanned_path);',
+                        'snprintf(names_path, sizeof(names_path), "%s/names.txt", scanned_path);')
+          s = s.replace('printf("[names] scanned_path=\'%s\' rootdir=\'%s\'\\n", scanned_path, getRootDir());',
+                        'printf("[names] scanned_path=\'%s\'\\n", scanned_path);')
+          p.write_text(s)
 
       - name: Install ARM toolchain
         run: |
