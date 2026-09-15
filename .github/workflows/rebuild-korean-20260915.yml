@@ -1,0 +1,125 @@
+name: Rebuild Korean OSD 20260915
+
+on:
+  push:
+    branches:
+      - korean-20260915
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout latest upstream branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch Korean legacy commits
+        run: |
+          git remote add korean-legacy https://github.com/devilcg/Main_MiSTer.git || true
+          git fetch korean-legacy master
+
+      - name: Reapply Korean OSD core patches
+        shell: bash
+        run: |
+          set -euo pipefail
+          commits=(
+            6de992b9adb2bf6bf8ce290fc143677ac87cf169
+            c3f69ff5c07b25e36b06db0fcc16e2a561da3f51
+            d8830118e266b107a0baf54e1e84f8523a596838
+            1f9f3729e1ea2c2d582e8e914f35d71813fdc0d0
+            98d676ae673190d8be05f88206d82e21c30d32a8
+            6cb3a20a9184c0424650831c0c158871e0fc3de9
+            448273d2e57befffcdecc7ce7b3dcb618e91a936
+          )
+          for c in "${commits[@]}"; do
+            echo "Applying $c"
+            git cherry-pick -Xours "$c"
+          done
+
+      - name: Adapt file-list Hangul hooks to current menu.cpp
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('menu.cpp')
+          s = p.read_text()
+          replacements = {
+              'int len = strlen(flist_SelectedItem()->altname); // get name length':
+                  'int len = OsdDisplayLength(flist_SelectedItem()->altname); // get name length',
+              '&& strlen(flist_DirItem(k)->altname) > 28':
+                  '&& OsdDisplayLength(flist_DirItem(k)->altname) > 28',
+              'len = strlen(flist_DirItem(k)->altname); // get name length':
+                  'len = OsdDisplayLength(flist_DirItem(k)->altname); // get name length',
+              'len = strlen(home_dir);':
+                  'len = OsdDisplayLength(home_dir);',
+          }
+          for old, new in replacements.items():
+              s = s.replace(old, new)
+          p.write_text(s)
+
+      - name: Verify Korean integration points
+        run: |
+          grep -q '#include "menu_locale.h"' menu.cpp
+          grep -q '#include "hangul_font.h"' osd.cpp
+          grep -q 'OsdDisplayLength' osd.h
+          grep -q 'HANGUL_SLOT_FIRST' hangul_font.cpp
+          test -s generated/hangul_font_data.h
+
+      - name: Add Korean names script and ROM names.txt support
+        shell: bash
+        run: |
+          set -euo pipefail
+          commits=(
+            8d8aabea0f1304009b6f06f08c92d377323704d2
+            9aaf145e11d4d99591fe8e87e1915ea253b7cc22
+            1f72c5c1fa6dda022118bda6c2fe852ffa4d30b4
+            4a4154941806bfbe25dd498c5f621aa251ab171c
+            740138f9964b858685a54fd054ea50e114b89cbe
+            60504f302527eb898466aa17da7c86915ff25746
+            71b8c10350d6c1966dc6122317d06243b2e351ac
+            4716f5269f789ae98d9714d632ed819f4547b55e
+          )
+          for c in "${commits[@]}"; do
+            echo "Applying $c"
+            git cherry-pick -Xours "$c"
+          done
+
+      - name: Install ARM toolchain
+        run: |
+          wget -q https://developer.arm.com/-/media/Files/downloads/gnu-a/10.2-2020.11/binrel/gcc-arm-10.2-2020.11-x86_64-arm-none-linux-gnueabihf.tar.xz
+          sudo tar xf gcc-arm-10.2-2020.11-x86_64-arm-none-linux-gnueabihf.tar.xz -C /opt
+          echo "/opt/gcc-arm-10.2-2020.11-x86_64-arm-none-linux-gnueabihf/bin" >> "$GITHUB_PATH"
+
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y libfreetype6-dev
+
+      - name: Build MiSTer
+        run: |
+          make -j"$(nproc)"
+          file bin/MiSTer
+          ls -lh bin/MiSTer
+
+      - name: Commit rebuilt Korean branch
+        run: |
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "Korean OSD: rebase onto upstream 20260915 [korean-rebuild]"
+          fi
+          git push origin HEAD:korean-20260915
+
+      - name: Upload MiSTer binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: MiSTer-Korean-20260915
+          path: bin/MiSTer
+          if-no-files-found: error
